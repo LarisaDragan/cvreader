@@ -4,6 +4,15 @@ from flask import Flask, jsonify, request, Response
 from chatwrap.client import LLMClient
 from chatwrap.cli import LLM_SERVER_URL
 
+from chromadb import Client
+
+# Initialize Chroma using the new configuration style
+chroma_client = Client()
+collection = chroma_client.get_or_create_collection("cv_info")
+
+# Optional: Specify the storage directory using an environment variable
+os.environ['CHROMA_DB_DIR'] = 'chroma_db'
+
 
 app = Flask(__name__)
 CVS_PATH = 'CVs'
@@ -62,13 +71,24 @@ def extract_info():
         
     text = extract_text(os.path.join(CVS_PATH, file_name))
     
-    print("==", text)
+    # Save the extracted text to Chroma
+    collection.add(
+        documents=[text],
+        ids=[file_name]
+    )
     
     return 'Info extracted!'
 
-# TODO: install chroma 
-#  save info from extract to chroma
-#  extra: read from db - chroma
+@app.route('/readFromChroma', methods=["GET"])
+def read_from_chroma():
+    all_docs = collection.get()
+    return jsonify(all_docs)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
+    
+# TODO:  install chroma 
+#  save info from extract to chroma
+#  extra: read from db - chroma
